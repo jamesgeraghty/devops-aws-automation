@@ -1,2 +1,2 @@
 # devops-aws-automation
-Automate the process of creating. launching and monitoring a public facing webserver in the Amazon Cloud
+A simple script that allows theuser to automate the process of creating. launching and monitoring a public facing webserver using Amazon EC2
