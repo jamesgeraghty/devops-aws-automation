@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-from datetime import date
+from datetime import datetime, timedelta
 import json
+#from datetime import datetime, timedelta
 import datetime 
 import time
 import sys
@@ -8,6 +9,18 @@ import subprocess
 import boto3
 import requests # to get image from the web
 import shutil
+
+#n =str (random.random())
+#keypair_name = "myKeyPair"+n
+#new_keypair = ec2.create_key_pair(KeyName = keypair_name)
+#pemfile = keypair_name+'.pem'
+#with open ('./'+pemfile,'w') as file:
+ #    file.write(new_keypair.key_material)
+#cmd - 'chmod 400 {}'.format(pemfile)
+#subprocess.run(cmd, shell=True)
+
+
+
 ec2 = boto3.resource('ec2')
 s3 = boto3.resource("s3")
 #user data is used to create the apache server
@@ -155,18 +168,27 @@ try:
 except Exception as error:
     print (error)
 
-cloudwatch1= "scp -o StrictHostKeyChecking=no -i wit41.pem cloudwatch.py ec2-user@" + new_instance[0].public_ip_address + ":."
-cloudwatch2= "ssh -o StrictHostKeyChecking=no -i wit41.pem ec2-user@" + new_instance[0].public_ip_address + " ' ./cloudwatch.py'"
-print (cloudwatch1)
-print (cloudwatch2)
 
-try:
-    response = subprocess.run(cloudwatch1, shell=True)
-    print (response)
-except Exception as error:
-    print (error)
-try:
-    response = subprocess.run(cloudwatch2, shell=True)
-    print (response)
-except Exception as error:
-    print (error)
+cloudwatch = boto3.resource('cloudwatch')
+ec2 = boto3.resource('ec2')
+
+instid = new_instance[0].id    # Prompt the user to enter an Instance ID
+instance = ec2.Instance(instid)
+instance.monitor()  # Enables detailed monitoring on instance (1-minute intervals)
+time.sleep(360)     # Wait 6 minutes to ensure we have some data (can remove if not a new instance)
+
+
+metric_iterator = cloudwatch.metrics.filter(Namespace='AWS/EC2',
+                                            MetricName='CPUUtilization',
+                                            Dimensions=[{'Name':'InstanceId', 'Value': instid}])
+
+metric = list(metric_iterator)[0]    # extract first (only) element
+
+response = metric.get_statistics(StartTime = datetime.datetime.utcnow() - timedelta(minutes=5),   # 5 minutes ago
+                                 EndTime = datetime.datetime.utcnow(),                              # now
+                                 Period=300,                                             # 5 min intervals
+                                 Statistics=['Average'])
+
+print ("Average CPU utilisation:", response['Datapoints'][0]['Average'], response['Datapoints'][0]['Unit'])
+
+
